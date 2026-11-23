@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kesäkissa — animoitu lyhytelokuva</title>
+<style>
+  :root{
+    --paper:#f4e8d2;
+    --ink:#211c17;
+    --mom:#c65b4a;
+    --son:#3f8a86;
+    --accent:#d59a4e;
+    --panel:#171514;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;background:radial-gradient(circle at 50% -20%,#2a2724,#0b0b0c 70%);
+    color:var(--paper);font-family:"Segoe UI",Inter,system-ui,sans-serif;
+    display:grid;place-items:center;overflow:hidden;
+  }
+  #app{width:min(96vw,1180px);padding:10px 0 14px}
+  .topbar{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:0 4px 8px}
+  .topbar h1{font-size:15px;letter-spacing:.22em;text-transform:uppercase;margin:0;font-weight:700;color:#e8d6b6}
+  .topbar .sub{font-size:12px;color:#8d8578}
+
+  .stage{
+    position:relative;aspect-ratio:16/9;width:100%;overflow:hidden;border-radius:12px;
+    background:#d8c19e;border:1px solid #ffffff1c;
+    box-shadow:0 26px 70px #000a,0 0 0 6px #0003;
+    isolation:isolate;
+  }
+  .stage svg.scene{display:block;width:100%;height:100%}
+
+  /* --- kameratyö --- */
+  .camera{position:absolute;inset:0;transform-origin:50% 50%;will-change:transform;
+    transition-property:transform;transition-timing-function:cubic-bezier(.22,.7,.25,1)}
+  .fade{position:absolute;inset:0;z-index:10;background:#000;opacity:0;pointer-events:none;
+    transition:opacity .18s linear}
+
+  /* --- hahmojen asennot ja eleet --- */
+  .pose{transition:transform .55s cubic-bezier(.22,.7,.25,1);transform-box:fill-box;transform-origin:50% 100%}
+  .arm,.hand{transform-box:fill-box;transform-origin:50% 6%;transition:transform .38s ease}
+  .mom.p-point .arm-r,.mom.p-pat .arm-r{transform:rotate(-78deg)}
+  .mom.p-surrender .arm-l{transform:rotate(118deg)}
+  .mom.p-surrender .arm-r{transform:rotate(-118deg)}
+  .mom.p-stand .pose,.mom.p-leave .pose{transform:translateY(-16px)}
+  .mom.p-leave .pose{transform:translate(115px,-12px);transition-duration:2.2s}
+  .mom.p-sit .pose{transform:translateY(10px)}
+  .mom.p-pace .pose{animation:mompacing 2.6s ease-in-out infinite}
+  @keyframes mompacing{0%,100%{transform:translateX(-38px)}50%{transform:translateX(42px)}}
+  .son.p-arms .arm-l{transform:rotate(118deg)}
+  .son.p-arms .arm-r{transform:rotate(-118deg)}
+  .son.p-defend .arm-l{transform:rotate(52deg)}
+  .son.p-defend .arm-r{transform:rotate(-52deg)}
+  .son.p-shrug .arm-l{transform:rotate(24deg)}
+  .son.p-shrug .arm-r{transform:rotate(-24deg)}
+  .son.p-point .arm-r{transform:rotate(-62deg)}
+  .son.p-hug .pose{transform:translateX(-22px) rotate(-3deg)}
+  .son.p-recoil .pose{transform:translateX(26px) rotate(3deg)}
+  .son.p-pace .pose{animation:pacing 1.9s ease-in-out infinite}
+  @keyframes pacing{0%,100%{transform:translateX(-32px)}50%{transform:translateX(34px)}}
+  .son.p-deflate .pose{transform:translateY(14px) scale(.97)}
+  .son.p-shock .pose{transform:scale(1.04)}
+  .son.p-stop .pose{transform:translateY(-4px)}
+  .son.p-glance .head{transform:rotate(8deg) translateY(-4px)}
+  .son.p-rub .arm-l{transform:rotate(112deg)}
+  .son.p-rub .arm-r{transform:rotate(-112deg)}
+  .son.p-sigh .pose{transform:translateY(9px) scale(.98)}
+  .son.p-confused .brows{transform:translateY(-8px)}
+
+  .stage::after{
+    content:"";position:absolute;inset:0;pointer-events:none;z-index:6;
+    background:radial-gradient(ellipse at 50% 45%,transparent 45%,#0007 100%);
+    box-shadow:inset 0 0 90px #0005;
+  }
+  .grain{
+    position:absolute;inset:0;z-index:7;pointer-events:none;opacity:.14;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* --- scene tints & effects --- */
+  .tint{position:absolute;inset:0;z-index:4;pointer-events:none;opacity:0;transition:opacity .7s ease}
+  .tint.gold{background:radial-gradient(circle at 78% 28%,#ffd87366,transparent 60%)}
+  .stage[data-scene="sokeri"] .tint.gold{opacity:1}
+
+  /* --- kuvakohtaiset taustat --- */
+  .bg{display:none}
+  .stage[data-bg="balcony"] .bg-balcony{display:block}
+  .stage[data-bg="hallway"] .bg-hallway{display:block}
+  .stage:not([data-bg="room"]) .room-deco{display:none}
+
+  .sparkle{position:absolute;z-index:5;pointer-events:none;opacity:0;color:#ffe08a;font-size:22px;
+    transition:opacity .5s}
+  .stage[data-scene="sokeri"] .sparkle{opacity:1;animation:twinkle 1.4s ease-in-out infinite alternate}
+  @keyframes twinkle{from{transform:scale(.6) rotate(0);opacity:.3}to{transform:scale(1.25) rotate(35deg);opacity:1}}
+
+  .stage[data-fx="shake"] .world{animation:shake .42s cubic-bezier(.36,.07,.19,.97)}
+  @keyframes shake{10%,90%{transform:translateX(-3px)}20%,80%{transform:translateX(5px)}
+    30%,50%,70%{transform:translateX(-8px)}40%,60%{transform:translateX(8px)}}
+  .stage[data-fx="tilt"] .world{transform:rotate(-1.6deg) scale(1.05);transform-origin:50% 60%;transition:transform .8s}
+
+  /* --- characters --- */
+  .char{transition:opacity .4s}
+  .char:not(.speaking){opacity:.74}
+  .char.speaking .head{animation:nod 1.05s ease-in-out infinite;transform-box:fill-box;transform-origin:50% 92%}
+  .char.speaking .mouth{animation:talk .19s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:center}
+  .char.speaking .eyes{animation:blinktalk 4.2s infinite}
+  .eyes{transform-box:fill-box;transform-origin:center;animation:blink 6.2s infinite}
+  @keyframes talk{from{transform:scaleY(.35)}to{transform:scaleY(1.5)}}
+  @keyframes nod{0%,100%{transform:rotate(0)}50%{transform:rotate(-1.6deg)}}
+  @keyframes blink{0%,96%,100%{transform:scaleY(1)}98%{transform:scaleY(.08)}}
+  @keyframes blinktalk{0%,95%,100%{transform:scaleY(1)}97%{transform:scaleY(.08)}}
+  .brows{transition:transform .35s;transform-box:fill-box;transform-origin:center}
+  .stage[data-scene="ilme"] .mom .brows{transform:translateY(-7px) rotate(-4deg)}
+  .stage[data-scene="korkea"] .son .head{animation:wobble 1s ease-in-out infinite}
+  @keyframes wobble{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
+  .steam{animation:steam 2.8s ease-out infinite;transform-box:fill-box;transform-origin:bottom}
+  .steam.s2{animation-delay:1.1s}
+  @keyframes steam{0%{opacity:0;transform:translateY(0) scale(.7)}30%{opacity:.6}100%{opacity:0;transform:translateY(-22px) scale(1.3)}}
+
+  /* --- sivukuva: kasvot profiilissa vastakkain --- */
+  .prof{display:none}
+  .stage[data-view="side"] .prof{display:block}
+  .stage[data-view="side"] .eyes,
+  .stage[data-view="side"] .brows,
+  .stage[data-view="side"] .mouth,
+  .stage[data-view="side"] .front-feature{display:none}
+  .prof-eye{transform-box:fill-box;transform-origin:center;animation:blink 5.4s infinite}
+  .char.speaking .prof-eye{animation:blinktalk 4.2s infinite}
+  .char.speaking .prof-mouth{animation:talk .19s ease-in-out infinite alternate;
+    transform-box:fill-box;transform-origin:center}
+  .stage[data-view="side"] .mom .prof-brow{animation:browStub 5s ease-in-out infinite}
+  @keyframes browStub{0%,92%,100%{transform:translateY(0)}96%{transform:translateY(-5px)}}
+
+  /* --- pään kääntyminen --- */
+  .head-turn{transition:transform .5s cubic-bezier(.22,.7,.25,1);
+    transform-box:fill-box;transform-origin:50% 100%}
+  .stage[data-view="side"] .mom .head-turn{transform:rotate(4deg) translateX(3px)}
+  .stage[data-view="side"] .son .head-turn{transform:rotate(-4deg) translateX(-3px)}
+  /* --- overlays --- */
+  .vignette{
+    position:absolute;top:18px;right:18px;z-index:8;display:flex;align-items:center;gap:10px;
+    padding:8px 14px 8px 9px;border-radius:999px;background:#171714c9;border:1px solid #ffffff26;
+    backdrop-filter:blur(7px);color:#f0dfbe;font-size:12px;letter-spacing:.06em;
+    box-shadow:0 8px 24px #0005;max-width:60%;
+  }
+  .vignette .ico{width:34px;height:34px;display:grid;place-items:center;border-radius:50%;
+    background:#d59a4e26;color:var(--accent);flex:none}
+  .vignette svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:2;
+    stroke-linecap:round;stroke-linejoin:round}
+  .vignette.bump{animation:bump .45s ease}
+  @keyframes bump{0%{transform:translateY(-8px);opacity:0}100%{transform:none;opacity:1}}
+
+  .caption-wrap{position:absolute;left:0;right:0;bottom:0;z-index:9;padding:0 26px 22px;
+    display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
+  .caption{
+    width:min(860px,100%);min-height:78px;background:linear-gradient(180deg,#151412ee,#100f0ef2);
+    border:1px solid #ffffff1f;border-left:4px solid var(--accent);border-radius:10px;
+    padding:12px 18px;box-shadow:0 14px 34px #0009;backdrop-filter:blur(6px);
+  }
+  .caption.mom{border-left-color:var(--mom)}
+  .caption.son{border-left-color:var(--son)}
+  .caption .who{font-size:11px;letter-spacing:.2em;text-transform:uppercase;font-weight:800;
+    color:var(--accent);margin-bottom:5px}
+  .caption.mom .who{color:#e98b75}
+  .caption.son .who{color:#6fc4bb}
+  .caption .line{font-size:clamp(14px,1.65vw,20px);line-height:1.38;letter-spacing:.005em;color:#f6eddd}
+  .caption.in{animation:capIn .32s ease both}
+  @keyframes capIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  body.no-cc .caption-wrap{display:none}
+
+  .titlecard{position:absolute;inset:0;z-index:12;display:grid;place-content:center;text-align:center;
+    background:radial-gradient(ellipse at 50% 40%,#3a2d22ee,#0b0a09f5);cursor:pointer;
+    transition:opacity .6s}
+  .titlecard.gone{opacity:0;pointer-events:none}
+  .titlecard .kicker{font-size:11px;letter-spacing:.42em;color:#c99a5c;text-transform:uppercase}
+  .titlecard h2{font-size:clamp(34px,7vw,82px);margin:12px 0 4px;font-weight:800;letter-spacing:-.03em;
+    color:#f6e7c9;text-shadow:0 6px 30px #000}
+  .titlecard .by{font-size:13px;color:#a99a84;letter-spacing:.1em;margin-bottom:26px}
+  .titlecard .playbig{display:inline-flex;align-items:center;gap:10px;padding:11px 22px;border-radius:999px;
+    background:#d59a4e;color:#241a10;font-weight:800;letter-spacing:.05em;box-shadow:0 8px 26px #d59a4e55}
+  .titlecard .hint{margin-top:18px;font-size:11px;color:#8f8576}
+
+  .endcard{position:absolute;inset:0;z-index:11;display:none;place-content:center;text-align:center;
+    background:linear-gradient(180deg,#141210f2,#0a0908fa);padding:30px}
+  .endcard.show{display:grid;animation:capIn .8s ease both}
+  .endcard h3{font-size:clamp(24px,4vw,48px);margin:0 0 10px;color:#f6e7c9}
+  .endcard p{color:#c3b49a;margin:5px 0;font-size:14px}
+  .endcard button{justify-self:center;margin-top:20px;padding:10px 20px;border-radius:999px;border:0;
+    background:#d59a4e;color:#241a10;font-weight:800;cursor:pointer}
+
+  /* --- controls --- */
+  .controls{display:flex;align-items:center;gap:10px;margin:10px 4px 0;flex-wrap:wrap;font-size:12px;color:#a79c8b}
+  .controls button,.controls select{font:inherit;color:#e8dcc5;background:#1d1b19;border:1px solid #ffffff1f;
+    border-radius:7px;padding:7px 11px;cursor:pointer}
+  .controls button:hover,.controls select:hover{border-color:#d59a4e88;color:#fff}
+  .controls #play{background:#d59a4e;color:#241a10;border-color:transparent;font-weight:800;min-width:88px}
+  .controls #play:hover{background:#e6ac60}
+  .progress{flex:1;min-width:130px;height:7px;border-radius:99px;background:#ffffff18;cursor:pointer;overflow:hidden}
+  .progress div{height:100%;width:0;background:linear-gradient(90deg,#d59a4e,#f3cf86);border-radius:99px}
+  .time{font-variant-numeric:tabular-nums;min-width:96px;text-align:right}
+
+  .transcript{margin:10px 4px 0;max-height:180px;overflow:auto;background:#131211;border:1px solid #ffffff16;
+    border-radius:9px;padding:8px 10px;font-size:12.5px;line-height:1.55}
+  .transcript[hidden]{display:none}
+  .transcript .row{padding:4px 8px;border-radius:6px;cursor:pointer;color:#a99e8e;display:flex;gap:10px}
+  .transcript .row:hover{background:#ffffff0c;color:#eee}
+  .transcript .row.cur{background:#d59a4e22;color:#f7e9cf}
+  .transcript .row b{min-width:44px;font-size:10px;letter-spacing:.1em;padding-top:2px}
+  .transcript .row.mom b{color:#e98b75}
+  .transcript .row.son b{color:#6fc4bb}
+  .foot{margin:8px 4px 0;font-size:11px;color:#6f675c}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <h1>Kesäkissa</h1>
+    <span class="sub">animoitu lyhytelokuva · käsikirjoituksesta «Äiti, minulla on yksi tärkeä asia»</span>
+  </div>
+
+  <div class="stage" id="stage" data-scene="sohva" data-fx="" data-view="side">
+   <div class="camera" id="camera">
+    <svg class="scene" viewBox="0 0 1000 562" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#e9d8b9"/><stop offset="1" stop-color="#cdb28d"/>
+        </linearGradient>
+        <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#9d6f4c"/><stop offset="1" stop-color="#7a5438"/>
+        </linearGradient>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#9fc6d8"/><stop offset="1" stop-color="#e7d7ae"/>
+        </linearGradient>
+        <radialGradient id="lampGlow">
+          <stop offset="0" stop-color="#fff2c4" stop-opacity=".75"/>
+          <stop offset="1" stop-color="#ffd98a" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+
+      <g class="world">
+        <!-- HUONE -->
+        <rect width="1000" height="562" fill="url(#wall)"/>
+        <rect y="404" width="1000" height="36" fill="#b39269" opacity=".5"/>
+        <rect y="440" width="1000" height="122" fill="url(#floor)"/>
+        <path d="M0 470H1000 M0 510H1000 M0 548H1000" stroke="#5f3f29" stroke-opacity=".18" stroke-width="2"/>
+
+        <!-- TAUSTA: parveke (äidin kuvat) – piirretään ensin, joten se on aina hahmon TAKANA -->
+        <g class="bg bg-balcony">
+          <rect x="0" y="0" width="540" height="442" fill="#dbe8ee" stroke="#1f1f1f" stroke-width="4"/>
+          <rect x="24" y="24" width="492" height="388" fill="url(#sky)" stroke="#1f1f1f" stroke-width="5"/>
+          <path d="M24 300 H516" stroke="#1f1f1f" stroke-width="6"/>
+          <path d="M24 344 H516 M24 388 H516" stroke="#1f1f1f" stroke-width="5"/>
+          <path d="M120 300 V412 M300 300 V412 M480 300 V412" stroke="#1f1f1f" stroke-width="5"/>
+          <path d="M40 300 Q90 248 140 300 M340 300 Q390 248 440 300" fill="#9bbb8f" stroke="#1f1f1f" stroke-width="3"/>
+          <path d="M70 394 h40 l-6 42 h-28Z" fill="#b46b58" stroke="#1f1f1f" stroke-width="3"/>
+          <path d="M420 394 h40 l-6 42 h-28Z" fill="#b46b58" stroke="#1f1f1f" stroke-width="3"/>
+        </g>
+
+        <!-- TAUSTA: eteinen ja ulko-ovi (pojan kuvat) – niin ikään hahmon TAKANA -->
+        <g class="bg bg-hallway">
+          <rect x="450" y="0" width="550" height="442" fill="#d9c6a8" stroke="#1f1f1f" stroke-width="4"/>
+          <path d="M450 36 H1000" stroke="#1f1f1f" stroke-width="4"/>
+          <rect x="626" y="44" width="236" height="372" fill="#6d4a35" stroke="#1f1f1f" stroke-width="5" stroke-linejoin="round"/>
+          <rect x="646" y="64" width="196" height="140" fill="#8a6244" stroke="#1f1f1f" stroke-width="4"/>
+          <rect x="646" y="224" width="196" height="176" fill="#7a5439" stroke="#1f1f1f" stroke-width="4"/>
+          <circle cx="834" cy="252" r="12" fill="#d8b06a" stroke="#1f1f1f" stroke-width="4"/>
+          <path d="M530 72 h70 M530 112 h70" stroke="#1f1f1f" stroke-width="4"/>
+          <path d="M540 150 h50 v50 h-50Z" fill="#b46b58" stroke="#1f1f1f" stroke-width="3"/>
+          <path d="M548 398 h44 l-6 36 h-32Z" fill="#3f6f70" stroke="#1f1f1f" stroke-width="3"/>
+          <path d="M602 398 h44 l-6 36 h-32Z" fill="#7d5a40" stroke="#1f1f1f" stroke-width="3"/>
+        </g>
+
+        <!-- ikkuna -->
+        <g class="room-deco">
+          <rect x="66" y="62" width="212" height="186" rx="6" fill="#f2e6cf"/>
+          <rect x="76" y="72" width="192" height="166" fill="url(#sky)"/>
+          <path d="M76 190 Q120 168 160 190 T268 188 L268 238 L76 238Z" fill="#9caf85" opacity=".75"/>
+          <path d="M172 72V238 M76 155H268" stroke="#f2e6cf" stroke-width="9"/>
+          <rect x="58" y="244" width="228" height="12" rx="4" fill="#e3d0ae"/>
+          <path d="M66 62 Q40 140 66 244 L88 240 Q70 150 88 66Z" fill="#b46b58" opacity=".85"/>
+          <path d="M278 62 Q304 140 278 244 L256 240 Q274 150 256 66Z" fill="#b46b58" opacity=".85"/>
+        </g>
+
+        <!-- taulu & hylly -->
+        <g class="room-deco">
+          <rect x="346" y="88" width="132" height="98" rx="3" fill="#7d5a3f"/>
+          <rect x="354" y="96" width="116" height="82" fill="#e9ddc8"/>
+          <circle cx="386" cy="126" r="17" fill="#d59a4e" opacity=".8"/>
+          <path d="M362 170 L396 132 L420 158 L444 124 L462 170Z" fill="#7e9b8b" opacity=".8"/>
+          <rect x="520" y="180" width="180" height="9" rx="3" fill="#8a6244"/>
+          <rect x="534" y="150" width="12" height="30" fill="#a6584a"/>
+          <rect x="549" y="156" width="11" height="24" fill="#5d8079"/>
+          <rect x="563" y="146" width="13" height="34" fill="#d59a4e"/>
+          <path d="M650 180 Q642 158 652 148 Q662 160 650 180Z" fill="#6f8a63"/>
+        </g>
+
+        <!-- matto & kahvipöydän tuolit -->
+        <ellipse cx="500" cy="500" rx="340" ry="44" fill="#c98564" opacity=".4"/>
+        <g>
+          <!-- äidin tuoli (pöydän vasen pää) -->
+          <path d="M155 416 V326 Q155 302 179 302 H335 Q359 302 359 326 V416" fill="none" stroke="#1f1f1f" stroke-width="20" stroke-linejoin="round"/>
+          <path d="M155 416 V326 Q155 302 179 302 H335 Q359 302 359 326 V416" fill="none" stroke="#8a664b" stroke-width="13" stroke-linejoin="round"/>
+          <rect x="155" y="408" width="204" height="16" rx="7" fill="#9a7452" stroke="#1f1f1f" stroke-width="3"/>
+          <rect x="169" y="424" width="12" height="40" fill="#6f4830" stroke="#1f1f1f" stroke-width="3"/>
+          <rect x="333" y="424" width="12" height="40" fill="#6f4830" stroke="#1f1f1f" stroke-width="3"/>
+          <!-- pojan tuoli (pöydän oikea pää) -->
+          <path d="M654 519 V419 Q654 395 678 395 H834 Q858 395 858 419 V519" fill="none" stroke="#1f1f1f" stroke-width="20" stroke-linejoin="round"/>
+          <path d="M654 519 V419 Q654 395 678 395 H834 Q858 395 858 419 V519" fill="none" stroke="#7d5a40" stroke-width="13" stroke-linejoin="round"/>
+          <rect x="654" y="511" width="204" height="16" rx="7" fill="#8c684a" stroke="#1f1f1f" stroke-width="3"/>
+          <rect x="668" y="527" width="12" height="40" fill="#6f4830" stroke="#1f1f1f" stroke-width="3"/>
+          <rect x="832" y="527" width="12" height="40" fill="#6f4830" stroke="#1f1f1f" stroke-width="3"/>
+        </g>
+
+        <!-- lattialamppu -->
+        <g class="room-deco">
+          <circle cx="866" cy="226" r="118" fill="url(#lampGlow)"/>
+          <path d="M820 176 L912 176 L932 236 L800 236Z" fill="#e8c98f"/>
+          <path d="M820 176 L912 176 L932 236 L800 236Z" fill="none" stroke="#b99056" stroke-width="3"/>
+          <rect x="862" y="236" width="8" height="212" fill="#8a6b47"/>
+          <ellipse cx="866" cy="452" rx="46" ry="12" fill="#7a5c3d"/>
+        </g>
+
+        <!-- kasvi -->
+        <g class="room-deco">
+          <path d="M34 452 Q10 380 44 344 Q64 392 50 452Z" fill="#6f8a63"/>
+          <path d="M46 452 Q78 386 104 372 Q92 424 60 452Z" fill="#7f9a6f"/>
+          <path d="M22 448 H78 L70 492 H30Z" fill="#a6604a"/>
+        </g>
+
+        <!-- ÄITI -->
+        <g class="char mom" transform="translate(220,20) scale(0.78)">
+         <g class="pose">
+          <ellipse cx="70" cy="486" rx="92" ry="14" fill="#000" opacity=".18"/>
+          <path d="M-8 482 L16 356 H124 L158 482Z" fill="#778b74" stroke="#1f1f1f" stroke-width="4" stroke-linejoin="round"/>
+          <path d="M20 356 L70 382 L120 356 L110 392 L70 406 L30 392Z" fill="#b9a9b7" stroke="#1f1f1f" stroke-width="3" stroke-linejoin="round"/>
+          <path d="M22 352 L16 430" stroke="#1f1f1f" stroke-width="25" stroke-linecap="round" fill="none"/>
+          <path d="M118 352 L124 430" stroke="#1f1f1f" stroke-width="25" stroke-linecap="round" fill="none"/>
+          <path class="arm arm-l" d="M22 352 L16 430" stroke="#778b74" stroke-width="18" stroke-linecap="round" fill="none"/>
+          <path class="arm arm-r" d="M118 352 L124 430" stroke="#778b74" stroke-width="18" stroke-linecap="round" fill="none"/>
+          <circle class="hand hand-l" cx="16" cy="432" r="10" fill="#efc09a" stroke="#1f1f1f" stroke-width="3"/>
+          <circle class="hand hand-r" cx="124" cy="432" r="10" fill="#efc09a" stroke="#1f1f1f" stroke-width="3"/>
+          <rect x="56" y="302" width="28" height="46" fill="#e0aa84" stroke="#1f1f1f" stroke-width="3"/>
+          <g class="head-turn"><g class="head">
+            <circle class="front-feature" cx="120" cy="196" r="22" fill="#9b9893" stroke="#1f1f1f" stroke-width="3"/>
+            <ellipse cx="70" cy="250" rx="57" ry="65" fill="#efc09a" stroke="#1f1f1f" stroke-width="4"/>
+            <path d="M12 240 Q8 178 70 176 Q132 178 128 240 Q110 206 70 206 Q30 206 12 240Z" fill="#9b9893" stroke="#1f1f1f" stroke-width="3" stroke-linejoin="round"/>
+            <g class="eyes">
+              <circle cx="52" cy="250" r="5.5" fill="#1f1f1f"/>
+              <circle cx="88" cy="250" r="5.5" fill="#1f1f1f"/>
+            </g>
+            <g class="brows" stroke="#1f1f1f" stroke-width="4" stroke-linecap="round" fill="none">
+              <path d="M42 236 H62"/><path d="M78 236 H98"/>
+            </g>
+            <g class="front-feature" stroke="#1f1f1f" stroke-width="3" fill="none">
+              <circle cx="52" cy="250" r="16"/><circle cx="88" cy="250" r="16"/>
+              <path d="M68 250 H72 M36 248 L20 244 M104 248 L120 244"/>
+            </g>
+            <path class="mouth" d="M60 284 H80" stroke="#1f1f1f" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+            <g class="prof">
+              <circle cx="18" cy="198" r="22" fill="#9b9893" stroke="#1f1f1f" stroke-width="3"/>
+              <path d="M10 244 Q6 186 70 178 Q112 182 120 220 Q80 200 30 216Z" fill="#9b9893" stroke="#1f1f1f" stroke-width="3" stroke-linejoin="round"/>
+              <path d="M126 246 L139 252 L126 258Z" fill="#efc09a" stroke="#1f1f1f" stroke-width="3" stroke-linejoin="round"/>
+              <g class="prof-eye"><circle cx="98" cy="248" r="5.5" fill="#1f1f1f"/></g>
+              <path class="prof-brow" d="M86 236 H108" stroke="#1f1f1f" stroke-width="4" stroke-linecap="round" fill="none"/>
+              <circle cx="98" cy="249" r="16" stroke="#1f1f1f" stroke-width="3" fill="none"/>
+              <path d="M114 247 L130 244" stroke="#1f1f1f" stroke-width="3" fill="none"/>
+              <path class="prof-mouth" d="M104 283 H120" stroke="#1f1f1f" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+            </g>
+          </g></g>
+        </g>
+        </g>
+
+        <!-- kahvipöytä: piirretään äidin jälkeen mutta ennen poikaa,
+             jotta äiti on pöydän TAKANA ja poika pöydän EDESSÄ -> vastakkain -->
+        <g>
+          <ellipse cx="500" cy="470" rx="176" ry="22" fill="#7a5135" stroke="#1f1f1f" stroke-width="4"/>
+          <ellipse cx="500" cy="464" rx="176" ry="22" fill="#a5744d" stroke="#1f1f1f" stroke-width="4"/>
+          <ellipse cx="500" cy="466" rx="168" ry="19" fill="#8a5d3e"/>
+          <rect x="488" y="480" width="24" height="58" fill="#6f4830" stroke="#1f1f1f" stroke-width="3"/>
+          <ellipse cx="500" cy="538" rx="66" ry="11" fill="#6f4830" stroke="#1f1f1f" stroke-width="3"/>
+          <ellipse cx="500" cy="464" rx="42" ry="11" fill="#e9dcc4"/>
+          <rect x="476" y="452" width="50" height="12" rx="2" fill="#d9c7a8" transform="rotate(-5 500 458)"/>
+          <path d="M480 456 h42 M480 460 h34" stroke="#b39c78" stroke-width="1.5"/>
+          <ellipse cx="418" cy="462" rx="25" ry="7" fill="#e0cfb2" stroke="#1f1f1f" stroke-width="3"/>
+          <path d="M405 438 h26 l-3 22 h-20Z" fill="#f0e3cf" stroke="#1f1f1f" stroke-width="3" stroke-linejoin="round"/>
+          <path d="M431 442 q9 3 0 12" stroke="#1f1f1f" stroke-width="6" fill="none"/>
+          <path d="M431 442 q9 3 0 12" stroke="#f0e3cf" stroke-width="3" fill="none"/>
+          <path class="steam" d="M418 434 q-6 -8 0 -15" stroke="#fff" stroke-width="2" fill="none" opacity=".6"/>
+          <ellipse cx="582" cy="462" rx="25" ry="7" fill="#d8c4a4" stroke="#1f1f1f" stroke-width="3"/>
+          <path d="M569 438 h26 l-3 22 h-20Z" fill="#e4d2b7" stroke="#1f1f1f" stroke-width="3" stroke-linejoin="round"/>
+          <path d="M595 442 q9 3 0 12" stroke="#1f1f1f" stroke-width="6" fill="none"/>
+          <path d="M595 442 q9 3 0 12" stroke="#e4d2b7" stroke-width="3" fill="none"/>
+          <path class="steam s2" d="M582 434 q6 -8 0 -15" stroke="#fff" stroke-width="2" fill="none" opacity=".6"/>
+        </g>
+
+        <!-- POIKA -->
+        <g class="char son" transform="translate(630,55) scale(1.08)">
+         <g class="pose">
+          <ellipse cx="70" cy="486" rx="92" ry="14" fill="#000" opacity=".18"/>
+          <path d="M-10 482 L16 352 H124 L152 482Z" fill="#3f6f70" stroke="#1f1f1f" stroke-width="4" stroke-linejoin="round"/>
+          <path d="M32 352 L70 378 L108 352 L98 392 L70 402 L42 392Z" fill="#305b5d" stroke="#1f1f1f" stroke-width="3" stroke-linejoin="round"/>
+          <path d="M20 352 L14 430" stroke="#1f1f1f" stroke-width="27" stroke-linecap="round" fill="none"/>
+          <path d="M120 352 L126 430" stroke="#1f1f1f" stroke-width="27" stroke-linecap="round" fill="none"/>
+          <path class="arm arm-l" d="M20 352 L14 430" stroke="#3f6f70" stroke-width="20" stroke-linecap="round" fill="none"/>
+          <path class="arm arm-r" d="M120 352 L126 430" stroke="#3f6f70" stroke-width="20" stroke-linecap="round" fill="none"/>
+          <circle class="hand hand-l" cx="14" cy="432" r="11" fill="#eab98f" stroke="#1f1f1f" stroke-width="3"/>
+          <circle class="hand hand-r" cx="126" cy="432" r="11" fill="#eab98f" stroke="#1f1f1f" stroke-width="3"/>
+          <rect x="56" y="302" width="28" height="46" fill="#d9a17d" stroke="#1f1f1f" stroke-width="3"/>
+          <g class="head-turn"><g class="head">
+            <ellipse cx="70" cy="250" rx="57" ry="65" fill="#eab98f" stroke="#1f1f1f" stroke-width="4"/>
+            <path d="M10 244 Q6 174 70 174 Q134 174 130 244 Q112 206 70 206 Q28 206 10 244Z" fill="#2c2622" stroke="#1f1f1f" stroke-width="3" stroke-linejoin="round"/>
+            <g class="eyes">
+              <circle cx="52" cy="250" r="5.5" fill="#1f1f1f"/>
+              <circle cx="88" cy="250" r="5.5" fill="#1f1f1f"/>
+            </g>
+            <g class="brows" stroke="#1f1f1f" stroke-width="4.5" stroke-linecap="round" fill="none">
+              <path d="M42 236 H62"/><path d="M78 236 H98"/>
+            </g>
+            <path class="mouth" d="M60 284 H80" stroke="#1f1f1f" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+            <g class="prof">
+              <path d="M12 244 Q8 178 70 176 Q122 180 128 222 Q84 202 30 218Z" fill="#2c2622" stroke="#1f1f1f" stroke-width="3" stroke-linejoin="round"/>
+              <path d="M14 246 L1 252 L14 258Z" fill="#eab98f" stroke="#1f1f1f" stroke-width="3" stroke-linejoin="round"/>
+              <g class="prof-eye"><circle cx="42" cy="248" r="5.5" fill="#1f1f1f"/></g>
+              <path class="prof-brow" d="M32 236 H54" stroke="#1f1f1f" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+              <path class="prof-mouth" d="M40 283 H22" stroke="#1f1f1f" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+            </g>
+          </g></g>
+        </g>
+        </g>
+
+
+      </g>
+    </svg>
+   </div>
+
+    <div class="tint gold"></div>
+    <div class="grain"></div>
+
+    <div class="vignette" id="vignette"><span class="ico" id="vignetteIcon"></span><span id="vignetteLabel">OLOHUONE</span></div>
+
+    <div class="caption-wrap">
+      <div class="caption" id="caption">
+        <div class="who" id="who">POIKA</div>
+        <div class="line" id="line"></div>
+      </div>
+    </div>
+
+    <div class="titlecard" id="titlecard">
+      <div class="kicker">Yksi ilta, kaksi kupillista ja väärinymmärretty LED-lamppu</div>
+      <h2>KESÄKISSA</h2>
+      <div class="by">lyhytelokuva · n. <span id="estLen">2½</span> min</div>
+      <span class="playbig">▶&nbsp; KATSO ELOKUVA</span>
+      <div class="hint">välilyönti = tauko · nuolet = siirry · klikkaa progressia</div>
+    </div>
+
+    <div class="endcard" id="endcard">
+      <h3>Elämänkumppani.</h3>
+      <p>Sähkömies olisi vain bonus.</p>
+      <p style="opacity:.6;font-size:12px">KESÄKISSA — loppu · käsikirjoitus: perheen suusta</p>
+      <button id="again">↺ Katso uudelleen</button>
+    </div>
+    <span class="sparkle" style="left:16%;top:24%">✦</span>
+    <span class="sparkle" style="left:38%;top:16%;animation-delay:.4s">✧</span>
+    <span class="sparkle" style="left:62%;top:30%;animation-delay:.8s">✦</span>
+    <span class="sparkle" style="left:88%;top:14%;animation-delay:.2s">✧</span>
+    <div class="fade" id="fade"></div>
+  </div>
+
+  <div class="controls">
+    <button id="play">▶ Toista</button>
+    <button id="restart" title="Alusta">↺</button>
+    <div class="progress" id="progress"><div id="progressFill"></div></div>
+    <span class="time" id="time">0:00 / 0:00</span>
+    <select id="speed" title="Toistonopeus">
+      <option value="0.75">0,75×</option><option value="1" selected>1×</option>
+      <option value="1.25">1,25×</option><option value="1.5">1,5×</option>
+    </select>
+    <button id="audioBtn">Ääni: päällä</button>
+    <button id="cc">Tekstitykset: päällä</button>
+    <button id="list">Kohtaukset ▾</button>
+  </div>
+
+  <div class="transcript" id="transcript" hidden></div>
+  <div class="foot">Vinkki: klikkaa mitä tahansa kohtausta tekstilistasta hyppiäksesi suoraan siihen.</div>
+</div>
+
+<script>
+const ICONS = {
+  sohva:'<path d="M6 20h36v14H6zM10 20v-5h28v5"/><path d="M14 34v6M34 34v6"/>',
+  talvi:'<path d="M24 5v38M8 14l32 20M40 14L8 34"/><path d="M19 10l5 5 5-5M19 38l5-5 5 5"/>',
+  ilme:'<path d="M8 18q16-12 32 0"/><path d="M14 27h6M28 27h6M16 36q8 6 16 0"/>',
+  kissa:'<path d="M10 22L8 8l12 9M38 22l2-14-12 9"/><ellipse cx="24" cy="29" rx="14" ry="12"/><path d="M18 27h.1M30 27h.1M21 34q3 3 6 0"/>',
+  sokeri:'<path d="M12 18l12-7 12 7v16l-12 7-12-7z"/><path d="M12 18l12 7 12-7M24 25v16"/><path d="M40 8v6M37 11h6"/>',
+  tauko:'<path d="M17 10v28M31 10v28"/>',
+  isoaiti:'<path d="M10 34q0-10 10-10h8v10zM20 24v-6"/><path d="M30 16l10 10M40 16L30 26"/><circle cx="24" cy="36" r="2"/>',
+  valo:'<path d="M24 7a12 12 0 0 0-7 22v5h14v-5A12 12 0 0 0 24 7z"/><path d="M19 39h10M20 43h8"/>',
+  auto:'<path d="M5 32l4-12h26l8 12v7H5z"/><path d="M13 20v12M33 20v12"/><circle cx="14" cy="40" r="4"/><circle cx="34" cy="40" r="4"/>',
+  projekti:'<path d="M12 6h17l7 7v29H12z"/><path d="M29 6v7h7M19 22a5 5 0 1 1 7 4v3M23 35h.1"/>',
+  vauva:'<circle cx="24" cy="24" r="14"/><path d="M17 21h.1M31 21h.1M19 30q5 5 10 0M12 14q6-6 13-2"/>',
+  sirkus:'<path d="M6 38L24 8l18 30z"/><path d="M24 8v30M12 38q6-8 12 0M24 38q6-8 12 0"/><path d="M6 38h36"/>',
+  korkea:'<path d="M14 6v36M34 6v36M14 14h20M14 24h20M14 34h20"/>',
+  kumppani:'<path d="M24 40S8 30 8 19a8 8 0 0 1 16-3 8 8 0 0 1 16 3c0 11-16 21-16 21z"/>',
+  loppu:'<path d="M24 5l5 13 14 1-11 9 4 14-12-8-12 8 4-14L5 19l14-1z"/>'
+};
+
+const SCENES = {
+  sohva:'OLOHUONE', talvi:'VIIME VIIKKO?', ilme:'SE ILME',
+  kissa:'KESÄKISSA', sokeri:'SOKERIMAMMA', tauko:'PIENI TAUKO',
+  isoaiti:'ISOÄITI?', valo:'UUSI LAMPPU', auto:'FARMARIAUTO',
+  projekti:'"PROJEKTI"', vauva:'YLLÄTYSVAUVA', sirkus:'SIRKUS?',
+  korkea:'KORKEAT PAIKAT', kumppani:'ELÄMÄNKUMPPANI', loppu:'LOPPUTEKSTIT'
+};
+
+// Kohtaukset: teksti sellaisenaan (pienet kielioppivirheet siistitty)
+const LINES = [
+  ['POIKA','Hei äiti, kiva kun pääsit tulemaan. Viime kerrasta on aikaa.','sohva'],
+  ['ÄITI','Aikaa? Mehän nähtiin viime viikolla.','sohva'],
+  ['POIKA','Viime viikolla? Tuntui enemmänkin viime talvelta.','talvi'],
+  ['ÄITI','Sinulla on taas se ilme. Se "haluan jotain" -ilme.','ilme'],
+  ['POIKA','Ei mulla mitään ilmettä ole.','ilme'],
+  ['ÄITI','On. Sama ilme kuin silloin kun olit viisi ja yritit laittaa kesällä kissaa pakastimeen.','kissa'],
+  ['POIKA','Sanoit että kissa ei tykännyt kesän kuumuudesta?','kissa'],
+  ['ÄITI','En tarkoittanut sitä, kun sanoin ettei se ole "kesäkissa". Olet muutenkin jo liian iäkäs, tai köyhä hankkimaan sellasta toisenlaista kesäkissaa...','kissa'],
+  ['POIKA','...tai sokerimammaa...','sokeri'],
+  ['ÄITI','Sokerimamma? Kuka nyt haluaisi mamma, joka on tehty sokerista? Jos olisin sokerista, niin en voisi käyttää sitä kultaista suihkua, jonka isä asensi kuukausi sitten.','sokeri'],
+  ['POIKA','Yök äiti, ei... jotain rajaa.','sokeri'],
+  ['—','(pieni tauko)','tauko'],
+  ['POIKA','Äiti, minulla on sinulle yksi tärkeä asia kerrottavana.','sohva'],
+  ['ÄITI','...Ei kai?','sohva'],
+  ['POIKA','Mikä "ei kai"?','sohva'],
+  ['ÄITI','Minä tiesin sen!','sohva'],
+  ['POIKA','Mitä tiesit?','sohva'],
+  ['ÄITI','Minusta tulee isoäiti!','isoaiti','shake'],
+  ['POIKA','MITÄ?!','isoaiti','shake'],
+  ['ÄITI','Älä esitä yllättynyttä! Sinä siivosit ennen kuin minä tulin.','isoaiti'],
+  ['POIKA','Se ei todista mitään!','isoaiti'],
+  ['ÄITI','Ja olet ostanut uuden lampun. Ihan selvä pesänrakennusvietti.','valo'],
+  ['POIKA','Minä vain halusin paremman valaistuksen olohuoneeseen!','valo'],
+  ['ÄITI','Aivan niin. "Parempi valaistus vauvalle."','valo'],
+  ['POIKA','Ei täällä ole mitään vauvaa!','vauva'],
+  ['ÄITI','Ei vielä. Mutta minä näin sen katseen. Sama katse kuin isälläsi silloin kun hän osti farmariauton.','auto'],
+  ['POIKA','Minä ostin LED-lampun, en farmariautoa!','auto'],
+  ['ÄITI','Kuinka pitkällä te sitten olette?','projekti'],
+  ['POIKA','Missä?!','projekti'],
+  ['ÄITI','No siinä projektissa!','projekti'],
+  ['POIKA','Missä ihmeen projektissa?!','projekti'],
+  ['ÄITI','Älä pakota minua sanomaan "lapsentekoprojekti" ääneen, minä olen vanhan kansan ihminen!','projekti'],
+  ['POIKA','ÄITI! Ei ole mitään projektia!','projekti'],
+  ['ÄITI','Ahaa... eli yllätysvauva?','vauva'],
+  ['POIKA','EI OLE VAUVAA!','vauva','shake'],
+  ['ÄITI','No mikä se suuri asia sitten on? Oletko liittynyt sirkukseen? Pituus on ainakin kohdallaan.','sirkus'],
+  ['POIKA','...Mä pelkään, siis todella pelkään korkeita paikkoja.','korkea','tilt'],
+  ['ÄITI','Voi hyvänen aika. Äidin pieni poika. Pelkää nyt korkeita paikkoja?','korkea','tilt'],
+  ['POIKA','En mä nyt niin pieni ole.','korkea','tilt'],
+  ['ÄITI','Olet jo niin iso, että voisit oppia vaihtamaan valaisimen itse.','valo'],
+  ['POIKA','No... ehkä.','valo'],
+  ['ÄITI','Tai vielä parempi: hanki elämääsi joku, joka auttaa valojen kanssa.','kumppani'],
+  ['POIKA','Niin kuin sähkömies?','kumppani'],
+  ['ÄITI','Elämänkumppani. Sähkömies olisi vain bonus.','loppu']
+];
+
+// Uusi käsikirjoitus: kuvanumerot ja kuvatyypit rivikohtaisesti
+const SHOTS = [
+  ['1','LAAJA KUVA'],            // 0
+  ['2','PUOLILÄHIKUVA'],         // 1
+  ['3','LÄHIKUVA'],              // 2
+  ['4','OVER THE SHOULDER'],     // 3
+  ['5','LÄHIKUVA'],              // 4
+  ['6','LÄHIKUVA'],              // 5
+  ['7','REAKTIOKUVA'],           // 6
+  ['8–9','KAKSIKUVA / KESKIKUVA'], // 7
+  ['10','LÄHIKUVA'],             // 8
+  ['11','LÄHIKUVA'],             // 9
+  ['12','NOPEA ZOOM'],           // 10
+  ['13','HILJAINEN HETKI'],      // 11
+  ['14','LÄHIKUVA'],             // 12
+  ['15','HIDAS TYÖNTÖ'],         // 13
+  ['16','LÄHIKUVA'],             // 14
+  ['17','NOUSEMINEN'],           // 15
+  ['18','KAKSIKUVA'],            // 16
+  ['19','LÄHIKUVA'],             // 17
+  ['20','NOPEA LEIKKAUS'],       // 18
+  ['21','KESKIKUVA'],            // 19
+  ['22','REAKTIO'],              // 20
+  ['23','HUONEEN TUTKIMINEN'],   // 21
+  ['24','LAMPPU'],               // 22
+  ['24','LAMPPU'],               // 23
+  ['24','LAMPPU'],               // 24
+  ['25','LÄHIKUVA'],             // 25
+  ['26','EDESTAKAISIN'],         // 26
+  ['26','EDESTAKAISIN'],         // 27
+  ['26','EDESTAKAISIN'],         // 28
+  ['26','EDESTAKAISIN'],         // 29
+  ['26','EDESTAKAISIN'],         // 30
+  ['26','EDESTAKAISIN'],         // 31
+  ['27','TURHAUTUMINEN'],        // 32
+  ['28','LÄHIKUVA'],             // 33
+  ['29','HUUTO'],                // 34
+  ['30','KAKSIKUVA'],            // 35
+  ['31','HILJENEMINEN'],         // 36
+  ['32','LÄHIKUVA'],             // 37
+  ['33','LÄHIKUVA'],             // 38
+  ['34','KESKIKUVA'],            // 39
+  ['35','REAKTIO'],              // 40
+  ['36','LÄHIKUVA'],             // 41
+  ['37','HÄMMENTYY'],            // 42
+  ['38','LOPPUKUVA']             // 43
+];
+
+// Kamerakulma ja hahmon asento rivikohtaisesti (uusi käsikirjoitus)
+const CAM = [
+  'wide',        // 1  laaja kuva olohuoneesta
+  'momClose',    // 2  puolilähikuva äidistä
+  'sonClose',    // 3  lähikuva pojasta
+  'ots',         // 4  over the shoulder äidin takaa
+  'sonClose',    // 5  lähikuva pojasta
+  'momClose',    // 6  lähikuva äidistä (osoittaa)
+  'sonClose',    // 7  reaktiokuva pojasta
+  'two',         // 8  kaksikuva
+  'sonClose',    // 10 lähikuva pojasta (sokerimamma)
+  'momClose',    // 11 lähikuva äidistä
+  'zoomSon',     // 12 nopea zoom poikaan
+  'medium',      // 13 hiljainen hetki
+  'sonClose',    // 14 lähikuva pojasta
+  'pushMom',     // 15 hidastyöntö äitiin
+  'sonClose',    // 16 lähikuva pojasta
+  'momMid',      // 17 äiti ponkaisee seisomaan
+  'two',         // 18 kaksikuva
+  'momClose',    // 19 lähikuva äidistä (isoäiti)
+  'sonClose',    // 20 nopea leikkaus poikaan
+  'medium',      // 21 äiti kävelee ympyrää
+  'sonClose',    // 22 pojan reaktio
+  'lamp',        // 23 äiti tutkii huonetta / lamppu
+  'lamp',        // 24 poika osoittaa lamppua
+  'momClose',    // 24 jatkuu
+  'two',         // 24 jatkuu
+  'momClose',    // 25 lähikuva äidistä
+  'wide',        // 26 poika kävelee edestakaisin
+  'two','two','two','two','two', // 26 jatkuu
+  'sonClose',    // 27 ehdoton turhautuminen
+  'momClose',    // 28 lähikuva äidistä
+  'sonClose',    // 29 pojan huuto
+  'two',         // 30 kaksikuva
+  'slowSon',     // 31 hiljeneminen – hidastettu lähestyminen
+  'momClose',    // 32 lähikuva äidistä
+  'sonClose',    // 33 lähikuva pojasta
+  'two',         // 34 keskikuva
+  'sonClose',    // 35 reaktio
+  'momClose',    // 36 lähikuva äidistä
+  'sonClose',    // 37 poika hämmäntyy
+  'end'          // 38 loppukuva – kamera vetäytyy
+];
+
+// Kuvakohtainen näkymä: 'side' = sivuprofiili, 'front' = etupuoli.
+// Kokoonpanot pidetään sivukuvina, tunnetilojen lähikuvat vuorottelevat etua ja sivua.
+const VIEW = [
+  'side','front','side','side','front','side','front','side','side','front',
+  'front','side','side','front','side','side','side','front','front','side',
+  'side','side','side','side','front','side','side','side','side','side',
+  'side','side','front','front','front','front','front','front','side','side',
+  'side','front','front','side'
+];
+const MOM_POSE = [
+  'sit','sit','sit','sit','sit','point','sit','sit','sit','sit',
+  'sit','sit','sit','sit','sit','stand','stand','stand','stand','pace',
+  'stand','stand','stand','stand','stand','stand','stand','stand','stand','stand',
+  'stand','stand','stand','stand','stand','surrender','stand','stand','stand','pat',
+  'stand','stand','stand','leave'
+];
+const SON_POSE = [
+  'hug','','shrug','','','','defend','','','',
+  '','rub','','','','','recoil','','shock','',
+  'arms','','point','','','','pace','pace','pace','pace',
+  'pace','pace','stop','','shock','','deflate','','','',
+  'glance','','confused','sigh'
+];
+
+const CAMERA_PRESETS = {
+  wide:{s:1,cx:500,cy:281},                 // sivukuva: pöydän päissä vastapäätä
+  medium:{s:1.3,cx:500,cy:300},
+  two:{s:1.15,cx:485,cy:268},               // kaksikuva pöydän yli
+  momClose:{s:2.1,cx:303,cy:213},           // sivuprofiili (takana)
+  sonClose:{s:2.1,cx:668,cy:323},           // sivuprofiili (edessä)
+  momMid:{s:1.6,cx:288,cy:240},
+  ots:{s:1.8,cx:660,cy:315},                // äidin olkapään yli poikaan
+  lamp:{s:1.5,cx:790,cy:300},
+  zoomSon:{s:2.55,cx:668,cy:323},
+  pushMom:{s:2.0,cx:303,cy:213},
+  slowSon:{s:2.25,cx:668,cy:323},
+  // etupuolen versiot (kasvot suoraan kameraan)
+  momCloseF:{s:2.1,cx:275,cy:215},
+  sonCloseF:{s:2.1,cx:706,cy:325},
+  momMidF:{s:1.6,cx:275,cy:240},
+  zoomSonF:{s:2.55,cx:706,cy:325},
+  pushMomF:{s:2.0,cx:275,cy:215},
+  slowSonF:{s:2.25,cx:706,cy:325},
+  end:{s:0.99,cx:500,cy:281}
+};
+function camTransform(p){
+  const tx=-(p.cx-500)/1000*100*p.s;
+  const ty=-(p.cy-281)/562*100*p.s;
+  return 'translate('+tx.toFixed(2)+'%,'+ty.toFixed(2)+'%) scale('+p.s+')';
+}
+function applyCamera(key,L,view){
+  stage.dataset.bg=/^(momClose|momMid|pushMom)/.test(key) ? 'balcony'
+    : /^(sonClose|zoomSon|slowSon|ots)/.test(key) ? 'hallway' : 'room';
+  const presetKey=(view==='front' && CAMERA_PRESETS[key+'F']) ? key+'F' : key;
+  const p=CAMERA_PRESETS[presetKey]||CAMERA_PRESETS.wide;
+  let dur=0.5;
+  if(key==='zoomSon') dur=0.32;
+  if(key==='pushMom'||key==='slowSon'||key==='end'){
+    camera.style.transitionDuration='0s';
+    camera.style.transform=camTransform(Object.assign({},p,{s:key==='end'?1.18:1.28}));
+    void camera.offsetWidth;
+    dur=L.dur;
+  }
+  camera.style.transitionDuration=dur+'s';
+  camera.style.transform=camTransform(p);
+}
+function applyPose(i){
+  stage.querySelector('.mom').setAttribute('class','char mom '+(MOM_POSE[i]?'p-'+MOM_POSE[i]:''));
+  stage.querySelector('.son').setAttribute('class','char son '+(SON_POSE[i]?'p-'+SON_POSE[i]:''));
+}
+
+// kesto: tekstin pituudesta, vähintään 1,9 s
+LINES.forEach(l => { l.dur = Math.max(1.9, l[1].length * 0.052 + 0.95); });
+let total = 0;
+LINES.forEach(l => { l.start = total; total += l.dur; });
+let END = total + 2.2;
+
+const $ = id => document.getElementById(id);
+const stage=$('stage'), caption=$('caption'), who=$('who'), line=$('line');
+const vignette=$('vignette'), vignetteIcon=$('vignetteIcon'), vignetteLabel=$('vignetteLabel');
+const playBtn=$('play'), restartBtn=$('restart'), progress=$('progress'), fill=$('progressFill');
+const timeEl=$('time'), speedSel=$('speed'), ccBtn=$('cc'), listBtn=$('list'), transcript=$('transcript');
+const audioBtn=$('audioBtn'), titlecard=$('titlecard'), endcard=$('endcard');
+const camera=$('camera'), fade=$('fade');
+
+// --- AI-äänet: yksi MP3 vuoroa kohden (Edge TTS, fi-FI-Noora / fi-FI-Harri) ---
+const audio=new Array(LINES.length).fill(null);
+let audioOn=true, audioLoaded=0, timelineBuilt=false;
+const audioExpected=LINES.filter(l=>l[0]!=='—').length;
+
+function pauseAudio(){ audio.forEach(a=>{ if(a) a.pause(); }); }
+function stopAudio(){
+  audio.forEach(a=>{ if(a){ a.pause(); try{a.currentTime=0}catch(e){} } });
+}
+function playCurrentAudio(fromStart=false){
+  if(!audioOn || !playing || curIndex<0) return;
+  const a=audio[curIndex]; if(!a) return;
+  try{
+    if(fromStart) a.currentTime=0;
+    else{
+      const off=Math.max(0, t-LINES[curIndex].start);
+      a.currentTime=Math.min(off, Math.max(0,(a.duration||off)-0.05));
+    }
+    a.play().catch(()=>{});
+  }catch(e){}
+}
+function rebuildTimeline(){
+  if(timelineBuilt) return;
+  timelineBuilt=true;
+  let sum=0;
+  LINES.forEach(l=>{
+    l.dur=(audioOn && l.audioDur)
+      ? Math.max(1.2, l.audioDur+0.55)
+      : Math.max(1.9, l[1].length*0.052+0.95);
+    l.start=sum; sum+=l.dur;
+  });
+  total=sum; END=total+2.2;
+  $('estLen').textContent=Math.round(total/60)+' min';
+  if(!playing && t===0) render(true);
+}
+function audioDone(){ audioLoaded++; if(audioLoaded>=audioExpected) rebuildTimeline(); }
+LINES.forEach((l,i)=>{
+  if(l[0]==='—') return;
+  const a=new Audio('audio/line_'+String(i).padStart(2,'0')+'.mp3');
+  a.preload='auto';
+  a.addEventListener('loadedmetadata',()=>{
+    if(a.duration && isFinite(a.duration)) l.audioDur=a.duration;
+    audioDone();
+  },{once:true});
+  a.addEventListener('error',()=>audioDone(),{once:true});
+  audio[i]=a;
+});
+setTimeout(rebuildTimeline,6000); // varavara: jos äänet eivät lataudu
+
+// tekstilista
+transcript.innerHTML = LINES.map((l,i) =>
+  `<div class="row ${l[0]==='ÄITI'?'mom':l[0]==='POIKA'?'son':''}" data-i="${i}">
+     <b>${l[0]}</b><span>${l[1]}</span></div>`).join('');
+transcript.querySelectorAll('.row').forEach(r => r.onclick = () => seek(LINES[+r.dataset.i].start + 0.05));
+
+let t = 0, playing = false, speed = 1, last = 0, curIndex = -1, curScene = '', curFx = '', curShot = -1;
+let t0Wall = 0, t0Film = 0;
+audio.forEach(a=>{ if(a) a.playbackRate=speed; });
+$('estLen').textContent = Math.round(total/60) + ' min';
+
+function fmt(s){ s=Math.max(0,Math.floor(s)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+
+function setScene(sc, idx){
+  if(sc===curScene && idx===curShot) return;
+  curScene=sc; curShot=idx;
+  stage.dataset.scene=sc;
+  vignetteLabel.textContent=SHOTS[idx]
+    ? `KUVA ${SHOTS[idx][0]} · ${SHOTS[idx][1]} · ${VIEW[idx]==='front'?'ETU':'SIVU'}`
+    : (SCENES[sc]||'');
+  vignetteIcon.innerHTML=`<svg viewBox="0 0 48 48">${ICONS[sc]||ICONS.sohva}</svg>`;
+  vignette.classList.remove('bump'); void vignette.offsetWidth; vignette.classList.add('bump');
+}
+
+function setFx(fx){
+  if(fx===curFx) return;
+  curFx=fx||'';
+  stage.dataset.fx=curFx;
+}
+
+function render(force=false){
+  if(t>=END){
+    if(playing){ playing=false; playBtn.textContent='▶ Toista'; }
+    stopAudio();
+    fade.style.opacity='1';
+    endcard.classList.add('show');
+    return;
+  }
+  endcard.classList.remove('show');
+
+  let i=LINES.length-1;
+  for(let k=0;k<LINES.length;k++){ if(t<LINES[k].start+LINES[k].dur){ i=k; break; } }
+  const L=LINES[i];
+
+  if(i!==curIndex || force){
+    curIndex=i;
+    who.textContent=L[0];
+    line.textContent=L[1];
+    caption.className='caption '+(L[0]==='ÄITI'?'mom':L[0]==='POIKA'?'son':'');
+    caption.classList.remove('in'); void caption.offsetWidth; caption.classList.add('in');
+    stage.dataset.view=VIEW[i]||'side';
+    applyPose(i);
+    applyCamera(CAM[i], L, VIEW[i]);
+    stage.querySelectorAll('.char').forEach(c=>c.classList.remove('speaking'));
+    if(L[0]==='ÄITI') stage.querySelector('.mom').classList.add('speaking');
+    if(L[0]==='POIKA') stage.querySelector('.son').classList.add('speaking');
+    transcript.querySelectorAll('.row').forEach((r,k)=>r.classList.toggle('cur',k===i));
+    const cur=transcript.querySelector('.row.cur');
+    if(cur && listBtn.dataset.open==='1') cur.scrollIntoView({block:'nearest'});
+    stopAudio(); playCurrentAudio(true);
+  }
+  setScene(L[2], i);
+  setFx(L[3]);
+  fade.style.opacity=t>END-2 ? Math.min(1,(t-(END-2))/2) : '0';
+
+  fill.style.width=(Math.min(1,t/END)*100)+'%';
+  timeEl.textContent=fmt(t)+' / '+fmt(END);
+}
+
+function frame(){
+  if(!playing) return;
+  if(!t0Wall){ t0Wall=Date.now(); t0Film=t; }
+  t = t0Film + (Date.now()-t0Wall)/1000*speed;
+  if(t>=END) t=END;
+  render();
+}
+
+function togglePlay(){
+  if(t>=END){ seek(0); }
+  playing=!playing;
+  playBtn.textContent=playing?'❚❚ Tauko':'▶ Toista';
+  t0Wall=playing?Date.now():0; t0Film=t;
+  if(playing){
+    titlecard.classList.add('gone');
+    if(curIndex<0) render(true);
+    playCurrentAudio(false);
+  } else pauseAudio();
+}
+
+function seek(x){
+  t=Math.max(0,Math.min(END,x));
+  t0Wall=playing?Date.now():0; t0Film=t;
+  curIndex=-1; curScene=''; curFx=''; curShot=-1;
+  titlecard.classList.add('gone');
+  render(true);
+}
+
+playBtn.onclick=togglePlay;
+titlecard.onclick=togglePlay;
+restartBtn.onclick=()=>seek(0);
+$('again').onclick=()=>{
+  seek(0); playing=true; t0Wall=Date.now(); t0Film=t;
+  playBtn.textContent='❚❚ Tauko'; playCurrentAudio(true);
+};
+speedSel.onchange=()=>{
+  speed=parseFloat(speedSel.value); t0Wall=playing?Date.now():0; t0Film=t;
+  audio.forEach(a=>{ if(a) a.playbackRate=speed; });
+};
+audioBtn.onclick=()=>{
+  audioOn=!audioOn;
+  audioBtn.textContent='Ääni: '+(audioOn?'päällä':'pois');
+  if(!audioOn) pauseAudio(); else playCurrentAudio(false);
+};
+ccBtn.onclick=()=>{
+  document.body.classList.toggle('no-cc');
+  ccBtn.textContent='Tekstitykset: '+(document.body.classList.contains('no-cc')?'pois':'päällä');
+};
+listBtn.onclick=()=>{
+  const open=transcript.hidden;
+  transcript.hidden=!open;
+  listBtn.dataset.open=open?'1':'0';
+  listBtn.textContent='Kohtaukset '+(open?'▴':'▾');
+  if(open) render(true);
+};
+progress.onclick=e=>{
+  const r=progress.getBoundingClientRect();
+  seek((e.clientX-r.left)/r.width*END);
+};
+document.addEventListener('keydown',e=>{
+  if(['SELECT','BUTTON','INPUT'].includes(document.activeElement.tagName)) return;
+  if(e.code==='Space'){ e.preventDefault(); togglePlay(); }
+  if(e.code==='ArrowRight') seek(t+5);
+  if(e.code==='ArrowLeft') seek(t-5);
+});
+
+setScene('sohva', 0);
+render(true);
+setInterval(frame, 40);
+
+// linkillä voi avata suoraan tiettyyn kohtaan, esim. #t=0 (kuvakaappaukset)
+if(location.hash.indexOf('#t=')===0){
+  const v=parseFloat(location.hash.slice(3));
+  if(!isNaN(v)){ titlecard.classList.add('gone'); seek(v); }
+}
+</script>
+</body>
+</html>
