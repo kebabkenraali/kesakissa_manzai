@@ -860,6 +860,22 @@ function render(force=false){
 function frame(){
   if(!playing) return;
   if(!t0Wall){ t0Wall=Date.now(); t0Film=t; }
+
+  // Varmista, ettei vuoro vaihdu ennen kuin sen oma ääniraita on loppuun asti puhuttu.
+  // Jos ääni on vielä käynnissä vuoron lopussa, pidetään filmiaikaa paikallaan.
+  const a=(curIndex>=0) ? audio[curIndex] : null;
+  if(a && !a.ended && !a.error && a.duration &&
+     (a.currentTime>0 || !a.paused) &&
+     a.currentTime < a.duration-0.05){
+    const lineEnd=LINES[curIndex].start+LINES[curIndex].dur;
+    if(t>=lineEnd-0.02){
+      t=lineEnd-0.02;
+      t0Wall=Date.now(); t0Film=t;
+      render();
+      return;
+    }
+  }
+
   t = t0Film + (Date.now()-t0Wall)/1000*speed;
   if(t>=END) t=END;
   render();
