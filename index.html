@@ -2,7 +2,8 @@
 <html lang="fi">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0c">
 <title>Kesäkissa — animoitu lyhytelokuva</title>
 <style>
   :root{
@@ -25,6 +26,7 @@
   .topbar h1{font-size:15px;letter-spacing:.22em;text-transform:uppercase;margin:0;font-weight:700;color:#e8d6b6}
   .topbar .sub{font-size:12px;color:#8d8578}
 
+  .screen{position:relative;width:100%}
   .stage{
     position:relative;aspect-ratio:16/9;width:100%;overflow:hidden;border-radius:12px;
     background:#d8c19e;border:1px solid #ffffff1c;
@@ -212,6 +214,79 @@
   .transcript .row.mom b{color:#e98b75}
   .transcript .row.son b{color:#6fc4bb}
   .foot{margin:8px 4px 0;font-size:11px;color:#6f675c}
+
+  /* ================= MOBIILI JA KOKO NÄYTTÖ ================= */
+  /* Kuvanumerotarra ("KUVA 1 · LAAJA KUVA · SIVU") piilotetaan kaikkialla. */
+  .vignette{display:none !important}
+  .kbd-hint{display:inline}
+  .touch-hint{display:none}
+
+  /* Teatteritila: vain animaatio, tekstitys ja ohjaimet. */
+  body.theater .topbar,body.theater .foot,body.theater .transcript{display:none !important}
+  body.theater #app{height:100vh;height:100dvh;padding:0;display:flex;flex-direction:column;justify-content:flex-start}
+  body.theater .screen{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+  body.theater .stage{flex:1 1 auto;min-height:0;aspect-ratio:auto;max-height:none;border-radius:0}
+  #fsBtn[aria-pressed="true"]{background:#d59a4e;color:#241a10;border-color:transparent}
+
+  @media (max-width:760px), (max-height:520px){
+    html,body{height:100vh;height:100dvh;overflow:hidden;overscroll-behavior:none}
+    body{display:block;background:#0b0b0c}
+    #app{width:100%;max-width:none;height:100vh;height:100dvh;padding:0;
+      display:flex;flex-direction:column;justify-content:flex-start}
+    .topbar{flex:none;margin:0;padding:6px 12px 4px;gap:8px;align-items:center}
+    .topbar h1{font-size:13px}
+    .topbar .sub{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(100vw - 90px)}
+    .screen{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;justify-content:flex-start}
+    .stage{flex:1 1 auto;min-height:0;aspect-ratio:auto;max-height:none;
+      width:100%;border-radius:0;border-left:0;border-right:0;box-shadow:none}
+    .stage::after{box-shadow:inset 0 0 50px #0005}
+    .caption-wrap{position:static;flex:none;display:block;padding:6px 10px 4px;
+      background:linear-gradient(#0f0e0d,#0b0b0c);pointer-events:auto}
+    .caption{width:100%;min-height:0;padding:8px 12px;border-radius:8px;border-left-width:3px;box-shadow:none}
+    .caption .who{font-size:10px;letter-spacing:.14em;margin-bottom:2px}
+    .caption .line{font-size:clamp(15px,4.2vw,18px);line-height:1.36;
+      max-height:5.6em;overflow-y:auto;overscroll-behavior:contain}
+    .controls{flex:none;margin:0;padding:4px 10px calc(6px + env(safe-area-inset-bottom));
+      gap:6px;background:#131211;border-top:1px solid #ffffff12}
+    .controls button,.controls select{padding:8px 10px;min-height:38px;font-size:12px}
+    .controls #play{min-width:76px}
+    .progress{order:-1;flex:1 1 100%;min-width:100%;height:9px;margin:2px 0 4px}
+    .time{min-width:76px;font-size:11px}
+    .transcript{flex:0 1 auto;margin:0;padding:6px 10px;border-radius:0;
+      border-left:0;border-right:0;max-height:28dvh;font-size:12px}
+    .foot{flex:none;margin:0;padding:6px 12px calc(8px + env(safe-area-inset-bottom));font-size:11px}
+    .kbd-hint{display:none}
+    .touch-hint{display:inline}
+    .titlecard{padding:20px}
+    .titlecard .kicker{font-size:10px;letter-spacing:.22em;padding:0 8px;line-height:1.6}
+    .titlecard h2{font-size:clamp(32px,11vw,56px)}
+    .titlecard .by{font-size:11px;margin-bottom:18px}
+    .titlecard .hint{font-size:10px;line-height:1.7;padding:0 10px}
+    .endcard{padding:20px}
+    .endcard p{font-size:12px}
+  }
+  /* Pystyssä pidetään molemmat hahmot näkyvissä; vaakassa kuva saa kasvaa. */
+  @media (max-width:760px) and (orientation:portrait){
+    .screen{flex:0 0 auto}
+    .stage{flex:0 0 auto;height:min(80vw,40dvh);max-height:none}
+    /* Koko näytössäkin molemmat hahmot pidetään kuvassa. */
+    body.theater .screen{flex:0 0 auto}
+    body.theater .stage{flex:0 0 auto;height:min(80vw,40dvh)}
+  }
+  @media (max-width:760px) and (orientation:landscape){
+    .foot{display:none}
+  }
+  @media (max-height:520px){
+    .topbar{padding:3px 12px}
+    .topbar .sub{display:none}
+    .caption-wrap{padding:3px 10px}
+    .caption{padding:5px 10px}
+    .caption .who{display:none}
+    .caption .line{font-size:clamp(13px,3.6vw,16px);max-height:3.2em}
+    .controls{padding:2px 10px calc(4px + env(safe-area-inset-bottom))}
+    .controls button,.controls select{min-height:32px;padding:5px 8px}
+    .progress{margin:0;height:7px}
+  }
 </style>
 </head>
 <body>
@@ -221,6 +296,7 @@
     <span class="sub">animoitu lyhytelokuva · käsikirjoituksesta «Äiti, minulla on yksi tärkeä asia»</span>
   </div>
 
+  <div class="screen">
   <div class="stage" id="stage" data-scene="sohva" data-fx="" data-view="side">
    <div class="camera" id="camera">
     <svg class="scene" viewBox="0 0 1000 562" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
@@ -441,19 +517,12 @@
 
     <div class="vignette" id="vignette"><span class="ico" id="vignetteIcon"></span><span id="vignetteLabel">OLOHUONE</span></div>
 
-    <div class="caption-wrap">
-      <div class="caption" id="caption">
-        <div class="who" id="who">POIKA</div>
-        <div class="line" id="line"></div>
-      </div>
-    </div>
-
     <div class="titlecard" id="titlecard">
       <div class="kicker">Yksi ilta, kaksi kupillista ja väärinymmärretty LED-lamppu</div>
       <h2>KESÄKISSA</h2>
       <div class="by">lyhytelokuva · n. <span id="estLen">2½</span> min</div>
       <span class="playbig">▶&nbsp; KATSO ELOKUVA</span>
-      <div class="hint">välilyönti = tauko · nuolet = siirry · klikkaa progressia</div>
+      <div class="hint"><span class="kbd-hint">välilyönti = tauko · nuolet = siirry · klikkaa progressia</span><span class="touch-hint">napauta kuvaa = tauko · vedä edistymispalkkia</span></div>
     </div>
 
     <div class="endcard" id="endcard">
@@ -469,6 +538,14 @@
     <div class="fade" id="fade"></div>
   </div>
 
+  <div class="caption-wrap">
+    <div class="caption" id="caption">
+      <div class="who" id="who">POIKA</div>
+      <div class="line" id="line"></div>
+    </div>
+  </div>
+  </div>
+
   <div class="controls">
     <button id="play">▶ Toista</button>
     <button id="restart" title="Alusta">↺</button>
@@ -481,10 +558,11 @@
     <button id="audioBtn">Ääni: päällä</button>
     <button id="cc">Tekstitykset: päällä</button>
     <button id="list">Kohtaukset ▾</button>
+    <button id="fsBtn" title="Koko näyttö" aria-pressed="false">⛶ Koko näyttö</button>
   </div>
 
   <div class="transcript" id="transcript" hidden></div>
-  <div class="foot">Vinkki: klikkaa mitä tahansa kohtausta tekstilistasta hyppiäksesi suoraan siihen.</div>
+  <div class="foot"><span class="kbd-hint">Vinkki: klikkaa mitä tahansa kohtausta tekstilistasta hyppiäksesi suoraan siihen.</span><span class="touch-hint">Vinkki: käännä puhelin vaakaan saadaksesi suuremman kuvan · napauta kuvaa tauottaaksesi.</span></div>
 </div>
 
 <script>
@@ -700,9 +778,13 @@ const CAMERA_PRESETS = {
   end:{s:0.99,cx:500,cy:281}
 };
 function camTransform(p){
-  const tx=-(p.cx-500)/1000*100*p.s;
-  const ty=-(p.cy-281)/562*100*p.s;
-  return 'translate('+tx.toFixed(2)+'%,'+ty.toFixed(2)+'%) scale('+p.s+')';
+  // SVG käyttää "slice"-sovitusta. Kun näyttö ei ole 16:9, kameran siirto
+  // lasketaan todellisen peittävän skaalauksen mukaan, jotta kasvot pysyvät keskellä.
+  const r=stage.getBoundingClientRect();
+  const cover=Math.max(r.width/1000, r.height/562)||1;
+  const tx=-(p.cx-500)*p.s*cover;
+  const ty=-(p.cy-281)*p.s*cover;
+  return 'translate('+tx.toFixed(1)+'px,'+ty.toFixed(1)+'px) scale('+p.s+')';
 }
 function applyCamera(key,L,view){
   stage.dataset.bg=/^(momClose|momMid|pushMom)/.test(key) ? 'balcony'
@@ -771,7 +853,7 @@ function rebuildTimeline(){
     l.start=sum; sum+=l.dur;
   });
   total=sum; END=total+2.2;
-  $('estLen').textContent=Math.round(total/60)+' min';
+  $('estLen').textContent=Math.round(total/60);
   if(!playing && t===0) render(true);
 }
 function audioDone(){ audioLoaded++; if(audioLoaded>=audioExpected) rebuildTimeline(); }
@@ -797,7 +879,7 @@ transcript.querySelectorAll('.row').forEach(r => r.onclick = () => seek(LINES[+r
 let t = 0, playing = false, speed = 1, last = 0, curIndex = -1, curScene = '', curFx = '', curShot = -1;
 let t0Wall = 0, t0Film = 0;
 audio.forEach(a=>{ if(a) a.playbackRate=speed; });
-$('estLen').textContent = Math.round(total/60) + ' min';
+$('estLen').textContent = Math.round(total/60);
 
 function fmt(s){ s=Math.max(0,Math.floor(s)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
 
@@ -937,6 +1019,63 @@ document.addEventListener('keydown',e=>{
   if(e.code==='Space'){ e.preventDefault(); togglePlay(); }
   if(e.code==='ArrowRight') seek(t+5);
   if(e.code==='ArrowLeft') seek(t-5);
+});
+
+// --- Kosketuslaitteet: äänet vapautetaan ensimmäisen kosketuksen yhteydessä (iOS Safari) ---
+let audioUnlocked=false;
+function unlockAudio(){
+  if(audioUnlocked) return;
+  audioUnlocked=true;
+  // Äänielementit "avataan" käyttäjän kosketuksen yhteydessä. Play ja pause
+  // tehdään samassa tapahtumassa, ettei mikään myöhemmin lupaava callback
+  // ehdi keskeyttää varsinaista vuoroa.
+  audio.forEach(a=>{
+    if(!a) return;
+    try{
+      a.volume=0;
+      const p=a.play();
+      if(p&&p.catch) p.catch(()=>{});
+      a.pause();
+      a.currentTime=0;
+      a.volume=1;
+    }catch(e){}
+  });
+}
+['pointerdown','touchstart','click'].forEach(ev=>
+  document.addEventListener(ev,unlockAudio,{once:true,capture:true,passive:true}));
+
+// Napautus kuvaan tauottaa (vain kosketuslaitteilla).
+stage.addEventListener('click',e=>{
+  if(e.target.closest('#titlecard,#endcard,.caption-wrap')) return;
+  if(matchMedia('(pointer:coarse)').matches){ e.preventDefault(); togglePlay(); }
+});
+
+// --- Koko näyttö / teatteritila ---
+const fsBtn=$('fsBtn');
+function syncCamera(){ if(curIndex>=0) applyCamera(CAM[curIndex],LINES[curIndex],VIEW[curIndex]); }
+function setTheater(on){
+  document.body.classList.toggle('theater',on);
+  fsBtn.setAttribute('aria-pressed',on?'true':'false');
+  fsBtn.textContent=on?'⛶ Poistu':'⛶ Koko näyttö';
+  requestAnimationFrame(()=>requestAnimationFrame(syncCamera));
+}
+fsBtn.onclick=()=>{
+  const on=!document.body.classList.contains('theater');
+  setTheater(on);
+  try{
+    if(on){ if(document.getElementById('app').requestFullscreen) document.getElementById('app').requestFullscreen().catch(()=>{}); }
+    else if(document.exitFullscreen) document.exitFullscreen().catch(()=>{});
+  }catch(e){}
+};
+document.addEventListener('fullscreenchange',()=>{
+  if(!document.fullscreenElement && document.body.classList.contains('theater')) setTheater(false);
+});
+
+// Kuvasuhde muuttuu käännettäessä puhelin / avattaessa koko näyttö.
+let resizeTimer;
+addEventListener('resize',()=>{
+  clearTimeout(resizeTimer);
+  resizeTimer=setTimeout(syncCamera,120);
 });
 
 setScene('sohva', 0);
